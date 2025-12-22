@@ -1,0 +1,5 @@
+- Cards disappeared after removing static HTML
+- Checked backend logs → API was working
+- Checked browser console → CORS error
+- Researched CORS → fixed using Flask-CORS
+- Restarted backend → issue resolved
