@@ -6,11 +6,11 @@ app = Flask(__name__)
 # VERY IMPORTANT: explicit CORS config
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-@app.route("/")
+@app.route("/")                                         # ROOT health check
 def home():
     return "SmartMine backend is running"
 
-@app.route("/api/equipment")
+@app.route("/api/equipment")                            # A real API endpoint
 def get_equipment():
     equipment = [
         {

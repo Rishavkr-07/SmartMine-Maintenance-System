@@ -15,16 +15,39 @@
     </header>
 
     <main>
-        <section id="dashboard">
-            <h2>Equipment Dashboard</h2>
+    <section id="dashboard">
+        <h2>Equipment Dashboard</h2>
 
-           <div id="equipment-list">
-            <!-- Cards will be added by JavaScript -->
+        <!-- Summary cards -->
+        <div id="summary">
+            <div class="summary-card">
+                <h3>Total Equipment</h3>
+                <p id="total-count">0</p>
             </div>
 
+            <div class="summary-card good">
+                <h3>Good</h3>
+                <p id="good-count">0</p>
+            </div>
 
-        </section>
-    </main>
+            <div class="summary-card warning">
+                <h3>Warning</h3>
+                <p id="warning-count">0</p>
+            </div>
+
+            <div class="summary-card critical">
+                <h3>Critical</h3>
+                <p id="critical-count">0</p>
+            </div>
+        </div>
+
+        <!-- Equipment cards -->
+        <div id="equipment-list">
+            <!-- Cards will be added by JavaScript -->
+        </div>
+    </section>
+</main>
+
 
     <!-- JS -->
     <script src="js/app.js"></script>
