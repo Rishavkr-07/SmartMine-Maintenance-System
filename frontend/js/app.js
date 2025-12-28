@@ -12,10 +12,20 @@ fetch("http://127.0.0.1:5000/api/equipment")
 
         data.forEach(item => {
 
-            // Count statuses
+            // Count status
             if (item.status === "Good") good++;
             if (item.status === "Warning") warning++;
             if (item.status === "Critical") critical++;
+
+            // Maintenance alert logic
+            let alertText = "";
+            const usagePercent = (item.usage_hours / item.maintenance_limit) * 100;
+
+            if (usagePercent >= 100) {
+                alertText = "⚠️ Maintenance Overdue";
+            } else if (usagePercent >= 80) {
+                alertText = "⚠️ Maintenance Due Soon";
+            }
 
             // Create equipment card
             const card = document.createElement("div");
@@ -29,6 +39,7 @@ fetch("http://127.0.0.1:5000/api/equipment")
                 <h3>${item.name}</h3>
                 <p><strong>Status:</strong> ${item.status}</p>
                 <p><strong>Usage:</strong> ${item.usage_hours} / ${item.maintenance_limit} hrs</p>
+                ${alertText ? `<p class="alert">${alertText}</p>` : ""}
             `;
 
             equipmentList.appendChild(card);
