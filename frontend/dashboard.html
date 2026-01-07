@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | SmartMine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-slate-200">
+<div class="flex min-h-screen">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar"></div>
+
+  <!-- MAIN -->
+  <main class="flex-1 p-8 bg-gradient-to-br from-slate-950 to-slate-900">
+
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold">Dashboard</h1>
+      <p class="text-slate-400 text-sm">
+        Overview of mining operations
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-slate-900 border border-emerald-500/30 rounded-xl p-6">
+        <h3 class="text-slate-400 text-sm">Good Condition</h3>
+        <p class="text-4xl font-bold text-emerald-400 mt-2">0</p>
+      </div>
+
+      <div class="bg-slate-900 border border-amber-500/30 rounded-xl p-6">
+        <h3 class="text-slate-400 text-sm">Needs Attention</h3>
+        <p class="text-4xl font-bold text-amber-400 mt-2">0</p>
+      </div>
+
+      <div class="bg-slate-900 border border-red-500/30 rounded-xl p-6">
+        <h3 class="text-slate-400 text-sm">Critical</h3>
+        <p class="text-4xl font-bold text-red-400 mt-2">0</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- LOAD SIDEBAR (ONLY HERE, ONLY ONCE) -->
+<script type="module">
+  import { loadSidebar } from "./js/layout.js";
+  loadSidebar("dashboard");
+</script>
+
+<script src="js/app.js"></script>
+</body>
+</html>
