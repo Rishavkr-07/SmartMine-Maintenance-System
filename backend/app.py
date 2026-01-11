@@ -1,256 +1,125 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from models import db, Equipment, Maintenance
-from datetime import datetime
-
-app = Flask(__name__)
-
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///smartmine.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-db.init_app(app)
-
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-
-# =========================
-# HEALTH CHECK
-# =========================
-@app.route("/")
-def home():
-    return "SmartMine backend is running"
-
-
-# =========================
-# EQUIPMENT ENDPOINTS
-# =========================
-@app.route("/api/equipment", methods=["GET"])
-def get_equipment():
-    equipment_list = Equipment.query.all()
-
-    result = []
-    for eq in equipment_list:
-        result.append({
-            "id": eq.id,
-            "code": eq.code,
-            "name": eq.name,
-            "type": eq.type,
-            "usage_hours": eq.usage_hours,
-            "maintenance_limit": eq.maintenance_limit,
-            "status": eq.calculate_status()
-        })
-
-    return jsonify(result)
-
-
-@app.route("/api/equipment", methods=["POST"])
-def add_equipment():
-    data = request.json
-
-    new_equipment = Equipment(
-        name=data["name"],
-        code=data["code"],
-        type=data["type"],
-        usage_hours=data.get("usage_hours", 0),
-        maintenance_limit=data["maintenance_limit"]
-    )
-
-    db.session.add(new_equipment)
-    db.session.commit()
-
-    return jsonify({"message": "Equipment added successfully", "id": new_equipment.id}), 201
-
-
-@app.route("/api/equipment/<int:equipment_id>", methods=["PUT"])
-def update_equipment(equipment_id):
-    data = request.json
-    equipment = Equipment.query.get(equipment_id)
-
-    if not equipment:
-        return jsonify({"error": "Equipment not found"}), 404
-
-    equipment.name = data.get("name", equipment.name)
-    equipment.code = data.get("code", equipment.code)
-    equipment.type = data.get("type", equipment.type)
-    equipment.usage_hours = data.get("usage_hours", equipment.usage_hours)
-    equipment.maintenance_limit = data.get("maintenance_limit", equipment.maintenance_limit)
-
-    db.session.commit()
-
-    return jsonify({"message": "Equipment updated successfully"})
-
-
-@app.route("/api/equipment/<int:equipment_id>", methods=["DELETE"])
-def delete_equipment(equipment_id):
-    equipment = Equipment.query.get(equipment_id)
-
-    if not equipment:
-        return jsonify({"error": "Equipment not found"}), 404
-
-    db.session.delete(equipment)
-    db.session.commit()
-
-    return jsonify({"message": "Equipment deleted successfully"})
-
-
-# =========================
-# UPDATE EQUIPMENT HOURS
-# =========================
-@app.route("/api/equipment/<int:equipment_id>/update-hours", methods=["POST"])
-def update_equipment_hours(equipment_id):
-    data = request.json
-    equipment = Equipment.query.get(equipment_id)
-
-    if not equipment:
-        return jsonify({"error": "Equipment not found"}), 404
-
-    equipment.usage_hours = data.get("usage_hours", equipment.usage_hours)
-    db.session.commit()
-
-    return jsonify({
-        "message": "Hours updated",
-        "equipment": {
-            "id": equipment.id,
-            "code": equipment.code,
-            "name": equipment.name,
-            "usage_hours": equipment.usage_hours,
-            "status": equipment.calculate_status()
-        }
+// Load dashboard summary and create charts
+function loadDashboardSummary() {
+  fetch("http://127.0.0.1:5000/api/dashboard-summary")
+    .then(res => {
+      if (!res.ok) throw new Error("Network response was not ok");
+      return res.json();
     })
+    .then(data => {
+      document.getElementById("total-count").textContent = data.total;
+      document.getElementById("good-count").textContent = data.good;
+      document.getElementById("warning-count").textContent = data.warning;
+      document.getElementById("critical-count").textContent = data.critical;
+      
+      // Load recent alerts
+      loadRecentAlerts();
+      // Create chart
+      createStatusChart(data);
+    })
+    .catch(err => {
+      console.error("Dashboard error:", err);
+      // Fallback to sample data
+      const sampleData = {
+        total: 8,
+        good: 2,
+        warning: 4,
+        critical: 2
+      };
+      document.getElementById("total-count").textContent = sampleData.total;
+      document.getElementById("good-count").textContent = sampleData.good;
+      document.getElementById("warning-count").textContent = sampleData.warning;
+      document.getElementById("critical-count").textContent = sampleData.critical;
+      createStatusChart(sampleData);
+    });
+}
 
+function loadRecentAlerts() {
+  fetch("http://127.0.0.1:5000/api/alerts")
+    .then(res => res.json())
+    .then(alerts => {
+      const container = document.getElementById("recent-alerts");
+      container.innerHTML = '';
+      
+      if (alerts.length === 0) {
+        container.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">No active alerts 🎉</p>';
+        return;
+      }
+      
+      const recent = alerts.slice(0, 5); // Get only 5 most recent
+      
+      recent.forEach(alert => {
+        const alertEl = document.createElement("div");
+        alertEl.className = "flex items-center gap-3 p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800/70 transition";
+        alertEl.innerHTML = `
+          <div class="w-3 h-3 rounded-full ${alert.status === 'Critical' ? 'bg-red-500' : 'bg-amber-500'}"></div>
+          <div class="flex-1">
+            <p class="text-sm font-medium">${alert.name} (${alert.code})</p>
+            <p class="text-xs text-slate-400">${alert.status} • ${alert.usage_hours}h / ${alert.maintenance_limit}h</p>
+          </div>
+          <span class="text-xs px-2 py-1 rounded ${alert.status === 'Critical' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}">
+            ${alert.status}
+          </span>
+        `;
+        container.appendChild(alertEl);
+      });
+    })
+    .catch(err => {
+      console.error("Alerts error:", err);
+      document.getElementById("recent-alerts").innerHTML = 
+        '<p class="text-slate-400 text-sm text-center py-8">Cannot load alerts</p>';
+    });
+}
 
-# =========================
-# ALERTS (AUTO-GENERATED)
-# =========================
-@app.route("/api/alerts", methods=["GET"])
-def get_alerts():
-    equipment_list = Equipment.query.all()
-    alerts = []
-
-    for eq in equipment_list:
-        status = eq.calculate_status()
-
-        if status in ["Warning", "Critical"]:
-            alerts.append({
-                "equipment_id": eq.id,
-                "code": eq.code,
-                "name": eq.name,
-                "status": status,
-                "usage_hours": eq.usage_hours,
-                "maintenance_limit": eq.maintenance_limit
-            })
-
-    return jsonify(alerts)
-
-
-# =========================
-# MAINTENANCE ENDPOINTS
-# =========================
-@app.route("/api/maintenance", methods=["GET"])
-def get_maintenance():
-    maintenance_list = Maintenance.query.all()
-    result = []
-    for m in maintenance_list:
-        result.append({
-            "id": m.id,
-            "equipment_id": m.equipment_id,
-            "equipment_name": m.equipment.name if m.equipment else "Unknown",
-            "service_date": m.service_date,
-            "maintenance_type": m.maintenance_type,
-            "technician": m.technician,
-            "description": m.description,
-            "usage_at_service": m.usage_at_service
-        })
-    return jsonify(result)
-
-
-@app.route("/api/maintenance", methods=["POST"])
-def add_maintenance():
-    data = request.json
-    new_maintenance = Maintenance(
-        equipment_id=data["equipment_id"],
-        service_date=data["service_date"],
-        maintenance_type=data["maintenance_type"],
-        technician=data["technician"],
-        description=data["description"],
-        usage_at_service=data["usage_at_service"]
-    )
-    db.session.add(new_maintenance)
-    db.session.commit()
-    return jsonify({"message": "Maintenance record added", "id": new_maintenance.id}), 201
-
-
-# =========================
-# DASHBOARD SUMMARY
-# =========================
-@app.route("/api/dashboard-summary", methods=["GET"])
-def dashboard_summary():
-    equipment_list = Equipment.query.all()
-
-    summary = {
-        "total": len(equipment_list),
-        "good": 0,
-        "warning": 0,
-        "critical": 0
+function createStatusChart(data) {
+  const ctx = document.getElementById('status-chart');
+  if (!ctx) return;
+  
+  // Destroy existing chart if it exists
+  if (window.statusChart) {
+    window.statusChart.destroy();
+  }
+  
+  window.statusChart = new Chart(ctx.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Good', 'Warning', 'Critical'],
+      datasets: [{
+        data: [data.good, data.warning, data.critical],
+        backgroundColor: [
+          '#22c55e', // green-500
+          '#facc15', // amber-400
+          '#ef4444'  // red-500
+        ],
+        borderWidth: 0,
+        hoverOffset: 15
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#94a3b8',
+            padding: 20,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          titleColor: '#e2e8f0',
+          bodyColor: '#cbd5e1',
+          borderColor: '#334155',
+          borderWidth: 1
+        }
+      },
+      cutout: '65%'
     }
+  });
+}
 
-    for eq in equipment_list:
-        status = eq.calculate_status()
-
-        if status == "Good":
-            summary["good"] += 1
-        elif status == "Warning":
-            summary["warning"] += 1
-        elif status == "Critical":
-            summary["critical"] += 1
-
-    return jsonify(summary)
-
-
-# =========================
-# SEED SAMPLE DATA
-# =========================
-@app.route("/api/seed", methods=["POST"])
-def seed_data():
-    if Equipment.query.count() > 0:
-        return jsonify({"message": "Data already exists"}), 400
-
-    # Seed equipment
-    sample_equipment = [
-        Equipment(code="ATL-ST18-005", name="Atlas Copco ST18", type="Scooptram", usage_hours=3400, maintenance_limit=4000),
-        Equipment(code="BEL-B60E-008", name="Bell B60E", type="Articulated Truck", usage_hours=6100, maintenance_limit=5000),
-        Equipment(code="CAT-797F-001", name="Caterpillar 797F", type="Haul Truck", usage_hours=4200, maintenance_limit=5000),
-        Equipment(code="EPI-BM2-006", name="Epiroc Boomer M2", type="Face Drill", usage_hours=2900, maintenance_limit=3000),
-        Equipment(code="HIT-EX8000-007", name="Hitachi EX8000", type="Excavator", usage_hours=1800, maintenance_limit=2500),
-        Equipment(code="KOM-PC8000-002", name="Komatsu PC8000", type="Excavator", usage_hours=4850, maintenance_limit=5000),
-        Equipment(code="LIE-T284-003", name="Liebherr T 284", type="Haul Truck", usage_hours=5200, maintenance_limit=5000),
-        Equipment(code="SAN-DD422-004", name="Sandvik DD422i", type="Drill Jumbo", usage_hours=2100, maintenance_limit=3000),
-    ]
-
-    db.session.add_all(sample_equipment)
-    db.session.flush()  # Get IDs for maintenance records
-
-    # Seed maintenance records
-    sample_maintenance = [
-        Maintenance(equipment_id=2, service_date="2024-03-15", maintenance_type="Engine Overhaul", 
-                   technician="John Smith", description="Complete engine teardown and rebuild", usage_at_service=5500),
-        Maintenance(equipment_id=3, service_date="2024-03-10", maintenance_type="Brake Inspection", 
-                   technician="Maria Garcia", description="Brake system check and pad replacement", usage_at_service=4000),
-        Maintenance(equipment_id=1, service_date="2024-03-05", maintenance_type="Hydraulic Service", 
-                   technician="Robert Chen", description="Hydraulic fluid change and hose inspection", usage_at_service=3200),
-    ]
-
-    db.session.add_all(sample_maintenance)
-    db.session.commit()
-
-    return jsonify({"message": "Sample equipment and maintenance inserted"}), 201
-
-
-# =========================
-# START SERVER
-# =========================
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(host="127.0.0.1", port=5000, debug=True)
-    
+// Load dashboard when page loads
+document.addEventListener('DOMContentLoaded', loadDashboardSummary);
